@@ -80,6 +80,23 @@ struct erofs_sb_info {
 	struct list_head list;
 	struct mutex umount_mutex;
 
+	/* the dedicated workstation for compression */
+	struct radix_tree_root workstn_tree;
+
+	/* strategy of sync decompression (false - auto, true - force on) */
+	bool readahead_sync_decompress;
+
+	/* threshold for decompression synchronously */
+	unsigned int max_sync_decompress_pages;
+
+	unsigned int shrinker_run_no;
+
+	/* current strategy of how to use managed cache */
+	unsigned char cache_strategy;
+
+	/* pseudo inode to manage cached pages */
+	struct inode *managed_cache;
+#endif	/* CONFIG_EROFS_FS_ZIP */
 	u32 blocks;
 	u32 meta_blkaddr;
 #ifdef CONFIG_EROFS_FS_XATTR
