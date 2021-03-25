@@ -419,7 +419,7 @@ extern const struct address_space_operations z_erofs_vle_normalaccess_aops;
 #endif
 
 /*
- * Logical to physical block mapping, used by erofs_map_blocks()
+ * Logical to physical block mapping
  *
  * Different with other file systems, it is used for 2 access modes:
  *
@@ -461,7 +461,7 @@ struct erofs_map_blocks {
 	unsigned int m_flags;
 };
 
-/* Flags used by erofs_map_blocks() */
+/* Flags used by erofs_map_blocks_flatmode() */
 #define EROFS_GET_BLOCKS_RAW    0x0001
 
 /* data.c */
@@ -472,51 +472,6 @@ static inline struct bio *prepare_bio(
 {
 	gfp_t gfp = GFP_NOIO;
 	struct bio *bio = bio_alloc(gfp, nr_pages);
-
-	if (unlikely(bio == NULL) &&
-		(current->flags & PF_MEMALLOC)) {
-		do {
-			nr_pages /= 2;
-			if (unlikely(!nr_pages)) {
-				bio = bio_alloc(gfp | __GFP_NOFAIL, 1);
-				BUG_ON(bio == NULL);
-				break;
-			}
-			bio = bio_alloc(gfp, nr_pages);
-		} while (bio == NULL);
-	}
-
-	bio->bi_end_io = endio;
-	bio_set_dev(bio, sb->s_bdev);
-	bio->bi_iter.bi_sector = blkaddr << LOG_SECTORS_PER_BLOCK;
-	return bio;
-}
-
-static inline void __submit_bio(struct bio *bio, unsigned op, unsigned op_flags)
-{
-	bio_set_op_attrs(bio, op, op_flags);
-	submit_bio(bio);
-}
-
-extern struct page *erofs_get_meta_page(struct super_block *sb,
-	erofs_blk_t blkaddr, bool prio);
-extern int erofs_map_blocks(struct inode *, struct erofs_map_blocks *, int);
-extern int erofs_map_blocks_iter(struct inode *, struct erofs_map_blocks *,
-	struct page **, int);
-
-struct erofs_map_blocks_iter {
-	struct erofs_map_blocks map;
-	struct page *mpage;
-};
-
-
-static inline struct page *
-erofs_get_inline_page(struct inode *inode,
-		      erofs_blk_t blkaddr)
-{
-	return erofs_get_meta_page(inode->i_sb,
-		blkaddr, S_ISDIR(inode->i_mode));
-}
 
 /* inode.c */
 extern struct inode *erofs_iget(struct super_block *sb,

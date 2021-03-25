@@ -146,54 +146,12 @@ err_out:
 	return err;
 }
 
-#ifdef CONFIG_EROFS_FS_ZIP
-extern int z_erofs_map_blocks_iter(struct inode *,
-	struct erofs_map_blocks *, struct page **, int);
-#endif
-
-int erofs_map_blocks_iter(struct inode *inode,
-	struct erofs_map_blocks *map,
-	struct page **mpage_ret, int flags)
-{
-	/* by default, reading raw data never use erofs_map_blocks_iter */
-	if (unlikely(!is_inode_layout_compression(inode))) {
-		if (*mpage_ret != NULL)
-			put_page(*mpage_ret);
-		*mpage_ret = NULL;
-
-		return erofs_map_blocks(inode, map, flags);
-	}
-
-#ifdef CONFIG_EROFS_FS_ZIP
-	return z_erofs_map_blocks_iter(inode, map, mpage_ret, flags);
-#else
-	/* data compression is not available */
-	return -ENOTSUPP;
-#endif
-}
-
-int erofs_map_blocks(struct inode *inode,
-	struct erofs_map_blocks *map, int flags)
-{
-	if (unlikely(is_inode_layout_compression(inode))) {
-		struct page *mpage = NULL;
-		int err;
-
-		err = erofs_map_blocks_iter(inode, map, &mpage, flags);
-		if (mpage != NULL)
-			put_page(mpage);
-		return err;
-	}
-	return erofs_map_blocks_flatmode(inode, map, flags);
-}
-
-static inline struct bio *erofs_read_raw_page(
-	struct bio *bio,
-	struct address_space *mapping,
-	struct page *page,
-	erofs_off_t *last_block,
-	unsigned nblocks,
-	bool ra)
+static inline struct bio *erofs_read_raw_page(struct bio *bio,
+					      struct address_space *mapping,
+					      struct page *page,
+					      erofs_off_t *last_block,
+					      unsigned int nblocks,
+					      bool ra)
 {
 	struct inode *inode = mapping->host;
 	erofs_off_t current_block = (erofs_off_t)page->index;
@@ -228,8 +186,8 @@ submit_bio_retry:
 		erofs_blk_t blknr;
 		unsigned blkoff;
 
-		err = erofs_map_blocks(inode, &map, EROFS_GET_BLOCKS_RAW);
-		if (unlikely(err))
+		err = erofs_map_blocks_flatmode(inode, &map, EROFS_GET_BLOCKS_RAW);
+		if (err)
 			goto err_out;
 
 		/* zero out the holed page */
@@ -381,8 +339,28 @@ static int erofs_raw_access_readpages(struct file *filp,
 	DBG_BUGON(!list_empty(pages));
 
 	/* the rare case (end in gaps) */
-	if (unlikely(bio != NULL))
-		__submit_bio(bio, REQ_OP_READ, 0);
+	if (bio)
+		submit_bio(bio);
+	return 0;
+}
+
+static sector_t erofs_bmap(struct address_space *mapping, sector_t block)
+{
+	struct inode *inode = mapping->host;
+	struct erofs_map_blocks map = {
+		.m_la = blknr_to_addr(block),
+	};
+
+	if (EROFS_I(inode)->datalayout == EROFS_INODE_FLAT_INLINE) {
+		erofs_blk_t blks = i_size_read(inode) >> LOG_BLOCK_SIZE;
+
+		if (block >> LOG_SECTORS_PER_BLOCK >= blks)
+			return 0;
+	}
+
+	if (!erofs_map_blocks_flatmode(inode, &map, EROFS_GET_BLOCKS_RAW))
+		return erofs_blknr(map.m_pa);
+
 	return 0;
 }
 
