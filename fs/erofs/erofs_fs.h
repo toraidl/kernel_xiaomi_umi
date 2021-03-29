@@ -184,6 +184,12 @@ struct erofs_extent_header {
 	__le32 eh_reserved[3];
 } __packed;
 
+/* 14 bytes (+ length field = 16 bytes) */
+struct z_erofs_lz4_cfgs {
+	__le16 max_distance;
+	u8 reserved[12];
+} __packed;
+
 /*
  * Z_EROFS Variable-sized Logical Extent cluster type:
  *    0 - literal (uncompressed) cluster

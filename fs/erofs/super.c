@@ -160,7 +160,7 @@ static int superblock_read(struct super_block *sb)
 	}
 
 	/* parse on-disk compression configurations */
-	ret = z_erofs_load_lz4_config(sb, dsb);
+	ret = z_erofs_load_lz4_config(sb, dsb, NULL, 0);
 out:
 	brelse(bh);
 	return ret;
