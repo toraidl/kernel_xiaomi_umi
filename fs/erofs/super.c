@@ -151,7 +151,16 @@ static int superblock_read(struct super_block *sb)
 	memcpy(sbi->volume_name, layout->volume_name,
 		sizeof(layout->volume_name));
 
-	ret = 0;
+	ret = strscpy(sbi->volume_name, dsb->volume_name,
+		      sizeof(dsb->volume_name));
+	if (ret < 0) {	/* -E2BIG */
+		erofs_err(sb, "bad volume name without NIL terminator");
+		ret = -EFSCORRUPTED;
+		goto out;
+	}
+
+	/* parse on-disk compression configurations */
+	ret = z_erofs_load_lz4_config(sb, dsb);
 out:
 	brelse(bh);
 	return ret;
