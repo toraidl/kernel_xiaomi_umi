@@ -468,6 +468,21 @@ extern struct inode *erofs_iget(struct super_block *sb,
 int erofs_namei(struct inode *dir, struct qstr *name,
 	erofs_nid_t *nid, unsigned *d_type);
 
+static inline void *erofs_vm_map_ram(struct page **pages, unsigned int count)
+{
+	int retried = 0;
+
+	while (1) {
+		void *p = vm_map_ram(pages, count, -1, PAGE_KERNEL);
+
+		/* retry two more times (totally 3 times) */
+		if (p || ++retried >= 3)
+			return p;
+		vm_unmap_aliases();
+	}
+	return NULL;
+}
+
 /* pcpubuf.c */
 void *erofs_get_pcpubuf(unsigned int requiredpages);
 void erofs_put_pcpubuf(void *ptr);
