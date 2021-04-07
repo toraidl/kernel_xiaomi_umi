@@ -389,6 +389,16 @@ struct erofs_vnode {
 
 	erofs_blk_t raw_blkaddr;
 
+	union {
+		erofs_blk_t raw_blkaddr;
+#ifdef CONFIG_EROFS_FS_ZIP
+		struct {
+			unsigned short z_advise;
+			unsigned char  z_algorithmtype[2];
+			unsigned char  z_logical_clusterbits;
+		};
+#endif	/* CONFIG_EROFS_FS_ZIP */
+	};
 	/* the corresponding vfs inode */
 	struct inode vfs_inode;
 };
