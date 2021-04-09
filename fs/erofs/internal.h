@@ -271,52 +271,9 @@ static inline int erofs_wait_on_workgroup_freezed(struct erofs_workgroup *grp)
 }
 #endif
 
-static inline bool erofs_workgroup_get(struct erofs_workgroup *grp, int *ocnt)
-{
-	int o;
-
-repeat:
-	o = erofs_wait_on_workgroup_freezed(grp);
-
-	if (unlikely(o <= 0))
-		return -1;
-
-	if (unlikely(atomic_cmpxchg(&grp->refcount, o, o + 1) != o))
-		goto repeat;
-
-	*ocnt = o;
-	return 0;
-}
-
-#define __erofs_workgroup_get(grp)	atomic_inc(&(grp)->refcount)
-#define __erofs_workgroup_put(grp)	atomic_dec(&(grp)->refcount)
-
-extern int erofs_workgroup_put(struct erofs_workgroup *grp);
-
-extern struct erofs_workgroup *erofs_find_workgroup(
-	struct super_block *sb, pgoff_t index, bool *tag);
-
-extern int erofs_register_workgroup(struct super_block *sb,
-	struct erofs_workgroup *grp, bool tag);
-
-extern unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
-	unsigned long nr_shrink, bool cleanup);
-
-static inline void erofs_workstation_cleanup_all(struct super_block *sb)
-{
-	erofs_shrink_workstation(EROFS_SB(sb), ~0UL, true);
-}
-
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
-#define EROFS_UNALLOCATED_CACHED_PAGE	((void *)0x5F0EF00D)
-
-extern int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
-	struct erofs_workgroup *egrp);
-extern int erofs_try_to_free_cached_page(struct address_space *mapping,
-	struct page *page);
-#endif
-
-#endif
+/* hard limit of pages per compressed cluster */
+#define Z_EROFS_CLUSTER_MAX_PAGES       (CONFIG_EROFS_FS_CLUSTER_PAGE_LIMIT)
+#endif	/* !CONFIG_EROFS_FS_ZIP */
 
 /* we strictly follow PAGE_SIZE and no buffer head yet */
 #define LOG_BLOCK_SIZE		PAGE_SHIFT
@@ -511,10 +468,15 @@ extern struct inode *erofs_iget(struct super_block *sb,
 int erofs_namei(struct inode *dir, struct qstr *name,
 	erofs_nid_t *nid, unsigned *d_type);
 
-/* xattr.c */
-#ifdef CONFIG_EROFS_FS_XATTR
-extern const struct xattr_handler *erofs_xattr_handlers[];
-#endif
+/* pcpubuf.c */
+void *erofs_get_pcpubuf(unsigned int requiredpages);
+void erofs_put_pcpubuf(void *ptr);
+int erofs_pcpubuf_growsize(unsigned int nrpages);
+void erofs_pcpubuf_init(void);
+void erofs_pcpubuf_exit(void);
+
+/* utils.c / zdata.c */
+struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp);
 
 #ifdef CONFIG_EROFS_FS_ZIP
 int erofs_workgroup_put(struct erofs_workgroup *grp);

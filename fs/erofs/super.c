@@ -706,7 +706,7 @@ static int __init erofs_module_init(void)
 	if (err)
 		goto shrinker_err;
 
-#ifdef CONFIG_EROFS_FS_ZIP
+	erofs_pcpubuf_init();
 	err = z_erofs_init_zip_subsystem();
 	if (err)
 		goto zip_err;
@@ -736,10 +736,12 @@ static void __exit erofs_module_exit(void)
 	unregister_filesystem(&erofs_fs_type);
 #ifdef CONFIG_EROFS_FS_ZIP
 	z_erofs_exit_zip_subsystem();
-#endif
-	unregister_shrinker(&erofs_shrinker_info);
-	erofs_exit_inode_cache();
-	infoln("successfully finalize erofs");
+	erofs_exit_shrinker();
+
+	/* Ensure all RCU free inodes are safe before cache is destroyed. */
+	rcu_barrier();
+	kmem_cache_destroy(erofs_inode_cachep);
+	erofs_pcpubuf_exit();
 }
 
 /* get filesystem statistics */
