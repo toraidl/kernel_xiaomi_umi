@@ -40,6 +40,11 @@
 #include "bq25790_reg.h"
 #include "bq25790.h"
 
+#define	bq_info	pr_debug
+#define bq_dbg	pr_debug
+#define bq_err	pr_debug
+#define bq_log	pr_debug
+
 enum print_reason {
 	PR_INTERRUPT = BIT(0),
 	PR_REGISTER = BIT(1),
