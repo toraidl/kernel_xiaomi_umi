@@ -243,7 +243,7 @@ int dsi_display_set_backlight(struct drm_connector *connector,
 	}
 
 #ifdef CONFIG_DRM_SDE_EXPO
-	if(bl_level && panel->dimlayer_exposure) {
+	if(bl_level && panel->dimlayer_exposure && bl_temp != 0) {
 		bl_temp = expo_map_dim_level((u32)bl_temp, dsi_display);
 	}
 #endif
