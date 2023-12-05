@@ -156,6 +156,10 @@ int usb_device_supports_lpm(struct usb_device *udev)
 	if (!udev->bos)
 		return 0;
 
+	/* Skip if the device BOS descriptor couldn't be read */
+	if (!udev->bos)
+		return 0;
+
 	/* USB 2.1 (and greater) devices indicate LPM support through
 	 * their USB 2.0 Extended Capabilities BOS descriptor.
 	 */
